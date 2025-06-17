@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "airline-flight-ops": {
+      "command": "node",
+      "args": ["./flight-ops-server.js"],
+      "env": {}
+    },
+    "airline-customer-service": {
+      "command": "node", 
+      "args": ["./customer-service-server.js"],
+      "env": {}
+    }
+  }
+}
