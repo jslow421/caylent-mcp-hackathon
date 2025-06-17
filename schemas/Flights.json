@@ -1,0 +1,82 @@
+{
+    "Table": {
+        "AttributeDefinitions": [
+            {
+                "AttributeName": "FlightNumber",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "ScheduledDepartureDate",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "Status",
+                "AttributeType": "S"
+            }
+        ],
+        "TableName": "Flights",
+        "KeySchema": [
+            {
+                "AttributeName": "FlightNumber",
+                "KeyType": "HASH"
+            },
+            {
+                "AttributeName": "ScheduledDepartureDate",
+                "KeyType": "RANGE"
+            }
+        ],
+        "TableStatus": "ACTIVE",
+        "CreationDateTime": "2025-06-17T13:41:03.326000-04:00",
+        "ProvisionedThroughput": {
+            "NumberOfDecreasesToday": 0,
+            "ReadCapacityUnits": 0,
+            "WriteCapacityUnits": 0
+        },
+        "TableSizeBytes": 0,
+        "ItemCount": 0,
+        "TableArn": "arn:aws:dynamodb:us-east-1:573620860331:table/Flights",
+        "TableId": "47599e03-0a0d-4907-a3e6-55830243a3c6",
+        "BillingModeSummary": {
+            "BillingMode": "PAY_PER_REQUEST",
+            "LastUpdateToPayPerRequestDateTime": "2025-06-17T13:41:03.326000-04:00"
+        },
+        "GlobalSecondaryIndexes": [
+            {
+                "IndexName": "StatusIndex",
+                "KeySchema": [
+                    {
+                        "AttributeName": "Status",
+                        "KeyType": "HASH"
+                    },
+                    {
+                        "AttributeName": "ScheduledDepartureDate",
+                        "KeyType": "RANGE"
+                    }
+                ],
+                "Projection": {
+                    "ProjectionType": "ALL"
+                },
+                "IndexStatus": "ACTIVE",
+                "ProvisionedThroughput": {
+                    "NumberOfDecreasesToday": 0,
+                    "ReadCapacityUnits": 0,
+                    "WriteCapacityUnits": 0
+                },
+                "IndexSizeBytes": 0,
+                "ItemCount": 0,
+                "IndexArn": "arn:aws:dynamodb:us-east-1:573620860331:table/Flights/index/StatusIndex",
+                "WarmThroughput": {
+                    "ReadUnitsPerSecond": 12000,
+                    "WriteUnitsPerSecond": 4000,
+                    "Status": "ACTIVE"
+                }
+            }
+        ],
+        "DeletionProtectionEnabled": false,
+        "WarmThroughput": {
+            "ReadUnitsPerSecond": 12000,
+            "WriteUnitsPerSecond": 4000,
+            "Status": "ACTIVE"
+        }
+    }
+}

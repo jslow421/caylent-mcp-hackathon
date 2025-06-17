@@ -1,0 +1,116 @@
+{
+    "Table": {
+        "AttributeDefinitions": [
+            {
+                "AttributeName": "CreatedAt",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "OptionId",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "OriginalFlightNumber",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "PassengerId",
+                "AttributeType": "S"
+            }
+        ],
+        "TableName": "RebookingOptions",
+        "KeySchema": [
+            {
+                "AttributeName": "OptionId",
+                "KeyType": "HASH"
+            },
+            {
+                "AttributeName": "PassengerId",
+                "KeyType": "RANGE"
+            }
+        ],
+        "TableStatus": "ACTIVE",
+        "CreationDateTime": "2025-06-17T13:41:46.829000-04:00",
+        "ProvisionedThroughput": {
+            "NumberOfDecreasesToday": 0,
+            "ReadCapacityUnits": 0,
+            "WriteCapacityUnits": 0
+        },
+        "TableSizeBytes": 0,
+        "ItemCount": 0,
+        "TableArn": "arn:aws:dynamodb:us-east-1:573620860331:table/RebookingOptions",
+        "TableId": "5be7d842-a009-4b26-9c8e-99afeb3f9c5e",
+        "BillingModeSummary": {
+            "BillingMode": "PAY_PER_REQUEST",
+            "LastUpdateToPayPerRequestDateTime": "2025-06-17T13:41:46.829000-04:00"
+        },
+        "GlobalSecondaryIndexes": [
+            {
+                "IndexName": "FlightOptionsIndex",
+                "KeySchema": [
+                    {
+                        "AttributeName": "OriginalFlightNumber",
+                        "KeyType": "HASH"
+                    },
+                    {
+                        "AttributeName": "CreatedAt",
+                        "KeyType": "RANGE"
+                    }
+                ],
+                "Projection": {
+                    "ProjectionType": "ALL"
+                },
+                "IndexStatus": "ACTIVE",
+                "ProvisionedThroughput": {
+                    "NumberOfDecreasesToday": 0,
+                    "ReadCapacityUnits": 0,
+                    "WriteCapacityUnits": 0
+                },
+                "IndexSizeBytes": 0,
+                "ItemCount": 0,
+                "IndexArn": "arn:aws:dynamodb:us-east-1:573620860331:table/RebookingOptions/index/FlightOptionsIndex",
+                "WarmThroughput": {
+                    "ReadUnitsPerSecond": 12000,
+                    "WriteUnitsPerSecond": 4000,
+                    "Status": "ACTIVE"
+                }
+            },
+            {
+                "IndexName": "PassengerOptionsIndex",
+                "KeySchema": [
+                    {
+                        "AttributeName": "PassengerId",
+                        "KeyType": "HASH"
+                    },
+                    {
+                        "AttributeName": "CreatedAt",
+                        "KeyType": "RANGE"
+                    }
+                ],
+                "Projection": {
+                    "ProjectionType": "ALL"
+                },
+                "IndexStatus": "ACTIVE",
+                "ProvisionedThroughput": {
+                    "NumberOfDecreasesToday": 0,
+                    "ReadCapacityUnits": 0,
+                    "WriteCapacityUnits": 0
+                },
+                "IndexSizeBytes": 0,
+                "ItemCount": 0,
+                "IndexArn": "arn:aws:dynamodb:us-east-1:573620860331:table/RebookingOptions/index/PassengerOptionsIndex",
+                "WarmThroughput": {
+                    "ReadUnitsPerSecond": 12000,
+                    "WriteUnitsPerSecond": 4000,
+                    "Status": "ACTIVE"
+                }
+            }
+        ],
+        "DeletionProtectionEnabled": false,
+        "WarmThroughput": {
+            "ReadUnitsPerSecond": 12000,
+            "WriteUnitsPerSecond": 4000,
+            "Status": "ACTIVE"
+        }
+    }
+}

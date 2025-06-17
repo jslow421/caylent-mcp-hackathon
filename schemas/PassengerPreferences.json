@@ -1,0 +1,46 @@
+{
+    "Table": {
+        "AttributeDefinitions": [
+            {
+                "AttributeName": "PassengerId",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "PreferenceType",
+                "AttributeType": "S"
+            }
+        ],
+        "TableName": "PassengerPreferences",
+        "KeySchema": [
+            {
+                "AttributeName": "PassengerId",
+                "KeyType": "HASH"
+            },
+            {
+                "AttributeName": "PreferenceType",
+                "KeyType": "RANGE"
+            }
+        ],
+        "TableStatus": "ACTIVE",
+        "CreationDateTime": "2025-06-17T13:42:12.824000-04:00",
+        "ProvisionedThroughput": {
+            "NumberOfDecreasesToday": 0,
+            "ReadCapacityUnits": 0,
+            "WriteCapacityUnits": 0
+        },
+        "TableSizeBytes": 0,
+        "ItemCount": 0,
+        "TableArn": "arn:aws:dynamodb:us-east-1:573620860331:table/PassengerPreferences",
+        "TableId": "9c8d95bf-735d-479a-9c88-25383495ce71",
+        "BillingModeSummary": {
+            "BillingMode": "PAY_PER_REQUEST",
+            "LastUpdateToPayPerRequestDateTime": "2025-06-17T13:42:12.824000-04:00"
+        },
+        "DeletionProtectionEnabled": false,
+        "WarmThroughput": {
+            "ReadUnitsPerSecond": 12000,
+            "WriteUnitsPerSecond": 4000,
+            "Status": "ACTIVE"
+        }
+    }
+}

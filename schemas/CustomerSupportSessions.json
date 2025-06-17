@@ -1,0 +1,116 @@
+{
+    "Table": {
+        "AttributeDefinitions": [
+            {
+                "AttributeName": "AgentId",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "CreatedAt",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "PassengerId",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "SessionId",
+                "AttributeType": "S"
+            }
+        ],
+        "TableName": "CustomerSupportSessions",
+        "KeySchema": [
+            {
+                "AttributeName": "SessionId",
+                "KeyType": "HASH"
+            },
+            {
+                "AttributeName": "CreatedAt",
+                "KeyType": "RANGE"
+            }
+        ],
+        "TableStatus": "ACTIVE",
+        "CreationDateTime": "2025-06-17T13:42:03.984000-04:00",
+        "ProvisionedThroughput": {
+            "NumberOfDecreasesToday": 0,
+            "ReadCapacityUnits": 0,
+            "WriteCapacityUnits": 0
+        },
+        "TableSizeBytes": 0,
+        "ItemCount": 0,
+        "TableArn": "arn:aws:dynamodb:us-east-1:573620860331:table/CustomerSupportSessions",
+        "TableId": "4b467959-1765-47c2-9d10-296e0e457392",
+        "BillingModeSummary": {
+            "BillingMode": "PAY_PER_REQUEST",
+            "LastUpdateToPayPerRequestDateTime": "2025-06-17T13:42:03.984000-04:00"
+        },
+        "GlobalSecondaryIndexes": [
+            {
+                "IndexName": "PassengerSessionsIndex",
+                "KeySchema": [
+                    {
+                        "AttributeName": "PassengerId",
+                        "KeyType": "HASH"
+                    },
+                    {
+                        "AttributeName": "CreatedAt",
+                        "KeyType": "RANGE"
+                    }
+                ],
+                "Projection": {
+                    "ProjectionType": "ALL"
+                },
+                "IndexStatus": "ACTIVE",
+                "ProvisionedThroughput": {
+                    "NumberOfDecreasesToday": 0,
+                    "ReadCapacityUnits": 0,
+                    "WriteCapacityUnits": 0
+                },
+                "IndexSizeBytes": 0,
+                "ItemCount": 0,
+                "IndexArn": "arn:aws:dynamodb:us-east-1:573620860331:table/CustomerSupportSessions/index/PassengerSessionsIndex",
+                "WarmThroughput": {
+                    "ReadUnitsPerSecond": 12000,
+                    "WriteUnitsPerSecond": 4000,
+                    "Status": "ACTIVE"
+                }
+            },
+            {
+                "IndexName": "AgentSessionsIndex",
+                "KeySchema": [
+                    {
+                        "AttributeName": "AgentId",
+                        "KeyType": "HASH"
+                    },
+                    {
+                        "AttributeName": "CreatedAt",
+                        "KeyType": "RANGE"
+                    }
+                ],
+                "Projection": {
+                    "ProjectionType": "ALL"
+                },
+                "IndexStatus": "ACTIVE",
+                "ProvisionedThroughput": {
+                    "NumberOfDecreasesToday": 0,
+                    "ReadCapacityUnits": 0,
+                    "WriteCapacityUnits": 0
+                },
+                "IndexSizeBytes": 0,
+                "ItemCount": 0,
+                "IndexArn": "arn:aws:dynamodb:us-east-1:573620860331:table/CustomerSupportSessions/index/AgentSessionsIndex",
+                "WarmThroughput": {
+                    "ReadUnitsPerSecond": 12000,
+                    "WriteUnitsPerSecond": 4000,
+                    "Status": "ACTIVE"
+                }
+            }
+        ],
+        "DeletionProtectionEnabled": false,
+        "WarmThroughput": {
+            "ReadUnitsPerSecond": 12000,
+            "WriteUnitsPerSecond": 4000,
+            "Status": "ACTIVE"
+        }
+    }
+}

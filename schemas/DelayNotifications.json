@@ -1,0 +1,116 @@
+{
+    "Table": {
+        "AttributeDefinitions": [
+            {
+                "AttributeName": "CreatedAt",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "FlightNumber",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "NotificationId",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "PassengerId",
+                "AttributeType": "S"
+            }
+        ],
+        "TableName": "DelayNotifications",
+        "KeySchema": [
+            {
+                "AttributeName": "NotificationId",
+                "KeyType": "HASH"
+            },
+            {
+                "AttributeName": "CreatedAt",
+                "KeyType": "RANGE"
+            }
+        ],
+        "TableStatus": "ACTIVE",
+        "CreationDateTime": "2025-06-17T13:41:36.070000-04:00",
+        "ProvisionedThroughput": {
+            "NumberOfDecreasesToday": 0,
+            "ReadCapacityUnits": 0,
+            "WriteCapacityUnits": 0
+        },
+        "TableSizeBytes": 0,
+        "ItemCount": 0,
+        "TableArn": "arn:aws:dynamodb:us-east-1:573620860331:table/DelayNotifications",
+        "TableId": "878bbee7-d94a-40da-b911-d9cbc59c4788",
+        "BillingModeSummary": {
+            "BillingMode": "PAY_PER_REQUEST",
+            "LastUpdateToPayPerRequestDateTime": "2025-06-17T13:41:36.070000-04:00"
+        },
+        "GlobalSecondaryIndexes": [
+            {
+                "IndexName": "PassengerNotificationsIndex",
+                "KeySchema": [
+                    {
+                        "AttributeName": "PassengerId",
+                        "KeyType": "HASH"
+                    },
+                    {
+                        "AttributeName": "CreatedAt",
+                        "KeyType": "RANGE"
+                    }
+                ],
+                "Projection": {
+                    "ProjectionType": "ALL"
+                },
+                "IndexStatus": "ACTIVE",
+                "ProvisionedThroughput": {
+                    "NumberOfDecreasesToday": 0,
+                    "ReadCapacityUnits": 0,
+                    "WriteCapacityUnits": 0
+                },
+                "IndexSizeBytes": 0,
+                "ItemCount": 0,
+                "IndexArn": "arn:aws:dynamodb:us-east-1:573620860331:table/DelayNotifications/index/PassengerNotificationsIndex",
+                "WarmThroughput": {
+                    "ReadUnitsPerSecond": 12000,
+                    "WriteUnitsPerSecond": 4000,
+                    "Status": "ACTIVE"
+                }
+            },
+            {
+                "IndexName": "FlightNotificationsIndex",
+                "KeySchema": [
+                    {
+                        "AttributeName": "FlightNumber",
+                        "KeyType": "HASH"
+                    },
+                    {
+                        "AttributeName": "CreatedAt",
+                        "KeyType": "RANGE"
+                    }
+                ],
+                "Projection": {
+                    "ProjectionType": "ALL"
+                },
+                "IndexStatus": "ACTIVE",
+                "ProvisionedThroughput": {
+                    "NumberOfDecreasesToday": 0,
+                    "ReadCapacityUnits": 0,
+                    "WriteCapacityUnits": 0
+                },
+                "IndexSizeBytes": 0,
+                "ItemCount": 0,
+                "IndexArn": "arn:aws:dynamodb:us-east-1:573620860331:table/DelayNotifications/index/FlightNotificationsIndex",
+                "WarmThroughput": {
+                    "ReadUnitsPerSecond": 12000,
+                    "WriteUnitsPerSecond": 4000,
+                    "Status": "ACTIVE"
+                }
+            }
+        ],
+        "DeletionProtectionEnabled": false,
+        "WarmThroughput": {
+            "ReadUnitsPerSecond": 12000,
+            "WriteUnitsPerSecond": 4000,
+            "Status": "ACTIVE"
+        }
+    }
+}

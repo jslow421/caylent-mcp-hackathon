@@ -1,0 +1,120 @@
+{
+    "Table": {
+        "AttributeDefinitions": [
+            {
+                "AttributeName": "BookingDate",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "BookingReference",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "FlightNumber",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "PassengerId",
+                "AttributeType": "S"
+            },
+            {
+                "AttributeName": "ScheduledDepartureDate",
+                "AttributeType": "S"
+            }
+        ],
+        "TableName": "Bookings",
+        "KeySchema": [
+            {
+                "AttributeName": "BookingReference",
+                "KeyType": "HASH"
+            },
+            {
+                "AttributeName": "PassengerId",
+                "KeyType": "RANGE"
+            }
+        ],
+        "TableStatus": "ACTIVE",
+        "CreationDateTime": "2025-06-17T13:41:25.056000-04:00",
+        "ProvisionedThroughput": {
+            "NumberOfDecreasesToday": 0,
+            "ReadCapacityUnits": 0,
+            "WriteCapacityUnits": 0
+        },
+        "TableSizeBytes": 0,
+        "ItemCount": 0,
+        "TableArn": "arn:aws:dynamodb:us-east-1:573620860331:table/Bookings",
+        "TableId": "e55e52a1-1dfa-4422-b18f-34f61f4f647b",
+        "BillingModeSummary": {
+            "BillingMode": "PAY_PER_REQUEST",
+            "LastUpdateToPayPerRequestDateTime": "2025-06-17T13:41:25.056000-04:00"
+        },
+        "GlobalSecondaryIndexes": [
+            {
+                "IndexName": "FlightBookingsIndex",
+                "KeySchema": [
+                    {
+                        "AttributeName": "FlightNumber",
+                        "KeyType": "HASH"
+                    },
+                    {
+                        "AttributeName": "ScheduledDepartureDate",
+                        "KeyType": "RANGE"
+                    }
+                ],
+                "Projection": {
+                    "ProjectionType": "ALL"
+                },
+                "IndexStatus": "ACTIVE",
+                "ProvisionedThroughput": {
+                    "NumberOfDecreasesToday": 0,
+                    "ReadCapacityUnits": 0,
+                    "WriteCapacityUnits": 0
+                },
+                "IndexSizeBytes": 0,
+                "ItemCount": 0,
+                "IndexArn": "arn:aws:dynamodb:us-east-1:573620860331:table/Bookings/index/FlightBookingsIndex",
+                "WarmThroughput": {
+                    "ReadUnitsPerSecond": 12000,
+                    "WriteUnitsPerSecond": 4000,
+                    "Status": "ACTIVE"
+                }
+            },
+            {
+                "IndexName": "PassengerBookingsIndex",
+                "KeySchema": [
+                    {
+                        "AttributeName": "PassengerId",
+                        "KeyType": "HASH"
+                    },
+                    {
+                        "AttributeName": "BookingDate",
+                        "KeyType": "RANGE"
+                    }
+                ],
+                "Projection": {
+                    "ProjectionType": "ALL"
+                },
+                "IndexStatus": "ACTIVE",
+                "ProvisionedThroughput": {
+                    "NumberOfDecreasesToday": 0,
+                    "ReadCapacityUnits": 0,
+                    "WriteCapacityUnits": 0
+                },
+                "IndexSizeBytes": 0,
+                "ItemCount": 0,
+                "IndexArn": "arn:aws:dynamodb:us-east-1:573620860331:table/Bookings/index/PassengerBookingsIndex",
+                "WarmThroughput": {
+                    "ReadUnitsPerSecond": 12000,
+                    "WriteUnitsPerSecond": 4000,
+                    "Status": "ACTIVE"
+                }
+            }
+        ],
+        "DeletionProtectionEnabled": false,
+        "WarmThroughput": {
+            "ReadUnitsPerSecond": 12000,
+            "WriteUnitsPerSecond": 4000,
+            "Status": "ACTIVE"
+        }
+    }
+}
