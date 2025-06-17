@@ -3,6 +3,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
+  GetCommand,
   QueryCommand,
   ScanCommand,
 } from "@aws-sdk/lib-dynamodb";
@@ -14,11 +15,15 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-const client = new DynamoDBClient({ region: "us-west-2" }); // Update region as needed
+const client = new DynamoDBClient({ region: "us-east-1" }); // Updated to match schema region
 const docClient = DynamoDBDocumentClient.from(client);
 
-const FLIGHTS_TABLE = "slowik-flight-test";
-const PASSENGERS_TABLE = "slowik-passenger-test";
+// Updated table names to match new schemas
+const FLIGHTS_TABLE = "Flights";
+const PASSENGERS_TABLE = "Passengers";
+const BOOKINGS_TABLE = "Bookings";
+const DELAY_NOTIFICATIONS_TABLE = "DelayNotifications";
+const REBOOKING_OPTIONS_TABLE = "RebookingOptions";
 
 const server = new Server(
   {
@@ -53,7 +58,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: "check_flight_delays",
         description:
-          "Check for delayed flights and affected passengers at Frankfurt hub",
+          "Check flights.Status field for delayed, cancelled, or diverted flights and affected passengers at Frankfurt hub",
         inputSchema: {
           type: "object",
           properties: {
@@ -65,7 +70,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             severity: {
               type: "string",
               description:
-                "Delay severity: minor (30-60min), major (60-120min), severe (120min+)",
+                "Delay severity: minor (30-60min), major (60-120min), severe (120min+, cancelled, diverted)",
               enum: ["minor", "major", "severe", "all"],
             },
           },
@@ -133,55 +138,73 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const airport = args?.airport || "FRA";
         const severity = args?.severity || "all";
 
-        // Scan the flights table for delays
-        const params = {
+        // Check flights.Status field for delay-related statuses (handle both uppercase and lowercase)
+        // First, get all flights and filter by delay-related statuses
+        const scanParams = {
           TableName: FLIGHTS_TABLE,
-          FilterExpression: "#origin = :airport AND #status = :status",
+          FilterExpression:
+            "#status IN (:delayed, :delayedUpper, :cancelled, :cancelledUpper, :diverted, :divertedUpper) OR (attribute_exists(DelayMinutes) AND DelayMinutes > :minDelay)",
           ExpressionAttributeNames: {
-            "#origin": "origin",
-            "#status": "status",
+            "#status": "Status",
           },
           ExpressionAttributeValues: {
-            ":airport": airport,
-            ":status": "delayed",
+            ":delayed": "delayed",
+            ":delayedUpper": "DELAYED",
+            ":cancelled": "cancelled",
+            ":cancelledUpper": "CANCELLED",
+            ":diverted": "diverted",
+            ":divertedUpper": "DIVERTED",
+            ":minDelay": 0,
           },
         };
 
-        // Add severity filter if specified
-        if (severity !== "all") {
-          let delayFilter = "";
-          switch (severity) {
-            case "minor":
-              delayFilter = "#delayMinutes BETWEEN :min AND :max";
-              params.ExpressionAttributeNames["#delayMinutes"] = "delayMinutes";
-              params.ExpressionAttributeValues[":min"] = 30;
-              params.ExpressionAttributeValues[":max"] = 60;
-              break;
-            case "major":
-              delayFilter = "#delayMinutes BETWEEN :min AND :max";
-              params.ExpressionAttributeNames["#delayMinutes"] = "delayMinutes";
-              params.ExpressionAttributeValues[":min"] = 60;
-              params.ExpressionAttributeValues[":max"] = 120;
-              break;
-            case "severe":
-              delayFilter = "#delayMinutes > :min";
-              params.ExpressionAttributeNames["#delayMinutes"] = "delayMinutes";
-              params.ExpressionAttributeValues[":min"] = 120;
-              break;
-          }
-          if (delayFilter) {
-            params.FilterExpression += ` AND ${delayFilter}`;
-          }
+        // Apply airport filter if specified
+        if (airport !== "all") {
+          scanParams.FilterExpression += " AND Origin = :airport";
+          scanParams.ExpressionAttributeValues[":airport"] = String(airport);
         }
 
-        const result = await docClient.send(new ScanCommand(params));
-        const flights = result.Items || [];
+        const result = await docClient.send(new ScanCommand(scanParams));
+        let flights = result.Items || [];
+
+        // Apply severity filter if specified and filter for actual delays
+        if (severity !== "all") {
+          flights = flights.filter((flight) => {
+            const delayMinutes = flight.DelayMinutes || 0;
+            // Only consider flights with actual delays (positive DelayMinutes or delay-related status)
+            const hasDelay = delayMinutes > 0 || isDelayedStatus(flight.Status);
+
+            if (!hasDelay) return false;
+
+            const statusLower = flight.Status
+              ? flight.Status.toLowerCase()
+              : "";
+            switch (severity) {
+              case "minor":
+                return delayMinutes >= 30 && delayMinutes <= 60;
+              case "major":
+                return delayMinutes > 60 && delayMinutes <= 120;
+              case "severe":
+                return (
+                  delayMinutes > 120 ||
+                  statusLower === "cancelled" ||
+                  statusLower === "diverted"
+                );
+              default:
+                return true;
+            }
+          });
+        } else {
+          // For "all" severity, still filter to only include actual delays
+          flights = flights.filter((flight) => {
+            const delayMinutes = flight.DelayMinutes || 0;
+            return delayMinutes > 0 || isDelayedStatus(flight.Status);
+          });
+        }
 
         // Add debug logging
         console.error(
-          `DEBUG: Scanned ${result.ScannedCount || 0} items, found ${
-            flights.length
-          } delayed flights`
+          `DEBUG: Found ${flights.length} delayed/disrupted flights at ${airport} (checking Status field case-insensitively for: delayed, cancelled, diverted)`
         );
 
         if (flights.length === 0) {
@@ -189,9 +212,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             content: [
               {
                 type: "text",
-                text: `No delayed flights found at ${airport}. This could mean:\n- All flights are on time\n- Database connection issues\n- No flights scheduled from this airport\n\nScanned ${
-                  result.ScannedCount || 0
-                } total flight records.`,
+                text: `No delayed, cancelled, or diverted flights found at ${airport}. Checked flights.Status field for delay-related statuses. This could mean:\n- All flights are on time (Status: "on_time")\n- Database connection issues\n- No flights scheduled from this airport`,
               },
             ],
           };
@@ -201,14 +222,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           total_delays: flights.length,
           affected_passengers: flights.length * 150, // Estimate
           flights: flights.map((flight) => ({
-            flightNumber: flight.flightNumber,
-            origin: flight.origin,
-            destination: flight.destination,
-            status: flight.status,
-            delayMinutes: flight.delayMinutes,
-            reason: flight.reason,
-            departure: flight.departure,
-            arrival: flight.arrival,
+            flightNumber: flight.FlightNumber,
+            origin: flight.Origin,
+            destination: flight.Destination,
+            status: flight.Status,
+            delayMinutes: flight.DelayMinutes,
+            reason: flight.DelayReason,
+            scheduledDeparture: flight.ScheduledDepartureTime,
+            estimatedDeparture: flight.EstimatedDepartureTime,
           })),
         };
 
@@ -218,7 +239,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               type: "text",
               text: `Found ${
                 flights.length
-              } delayed flights at ${airport}:\n\n${JSON.stringify(
+              } delayed/disrupted flights at ${airport} (based on flights.Status field):\n\n${JSON.stringify(
                 summary,
                 null,
                 2
@@ -240,12 +261,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "find_alternative_flights":
       try {
-        const {
-          origin,
-          destination,
-          passenger_tier = "regular",
-          departure_preference = "earliest",
-        } = args || {};
+        const { origin, destination, passenger_tier = "regular" } = args || {};
 
         if (!origin || !destination) {
           return {
@@ -261,15 +277,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const params = {
           TableName: FLIGHTS_TABLE,
           FilterExpression:
-            "#origin = :origin AND destination = :destination AND #status = :status",
+            "Origin = :origin AND Destination = :destination AND (#status = :onTime OR #status = :onTimeUpper OR #status = :scheduled OR #status = :scheduledUpper)",
           ExpressionAttributeNames: {
-            "#origin": "origin",
-            "#status": "status",
+            "#status": "Status",
           },
           ExpressionAttributeValues: {
-            ":origin": origin,
-            ":destination": destination,
-            ":status": "on_time",
+            ":origin": String(origin),
+            ":destination": String(destination),
+            ":onTime": "on_time",
+            ":onTimeUpper": "ON_TIME",
+            ":scheduled": "scheduled",
+            ":scheduledUpper": "SCHEDULED",
           },
         };
 
@@ -277,29 +295,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         let flights = result.Items || [];
 
         // Sort by departure time (earliest first)
-        flights.sort((a, b) => new Date(a.departure) - new Date(b.departure));
+        flights.sort(
+          (a, b) =>
+            new Date(a.ScheduledDepartureTime) -
+            new Date(b.ScheduledDepartureTime)
+        );
 
         // Limit to 5 results
         flights = flights.slice(0, 5);
 
         const alternatives = {
-          passenger_tier,
-          origin,
-          destination,
+          passenger_tier: String(passenger_tier),
+          origin: String(origin),
+          destination: String(destination),
           options: flights.map((flight) => ({
-            flightNumber: flight.flightNumber,
-            origin: flight.origin,
-            destination: flight.destination,
-            departure: flight.departure,
-            arrival: flight.arrival,
-            aircraft: flight.aircraft,
-            status: flight.status,
-            recommendation_reason:
-              passenger_tier === "senator"
-                ? "Premium service prioritized for Senator status"
-                : passenger_tier === "frequent_traveler"
-                ? "Earliest available departure for frequent traveler"
-                : "Available alternative flight",
+            flightNumber: flight.FlightNumber,
+            origin: flight.Origin,
+            destination: flight.Destination,
+            scheduledDeparture: flight.ScheduledDepartureTime,
+            scheduledArrival: flight.ScheduledArrivalTime,
+            aircraft: flight.AircraftType,
+            status: flight.Status,
+            availableSeats: flight.AvailableSeats,
+            recommendation_reason: getRecommendationReason(passenger_tier),
           })),
         };
 
@@ -335,23 +353,53 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
+        // Query the Bookings table using the FlightBookingsIndex GSI
         const params = {
-          TableName: PASSENGERS_TABLE,
-          FilterExpression: "currentBooking.flightNumber = :flightNumber",
+          TableName: BOOKINGS_TABLE,
+          IndexName: "FlightBookingsIndex",
+          KeyConditionExpression: "FlightNumber = :flightNumber",
           ExpressionAttributeValues: {
-            ":flightNumber": flight_number,
+            ":flightNumber": String(flight_number),
           },
         };
 
-        const result = await docClient.send(new ScanCommand(params));
-        const passengers = result.Items || [];
+        const result = await docClient.send(new QueryCommand(params));
+        const bookings = result.Items || [];
+
+        // Get passenger details for each booking
+        const passengerPromises = bookings.map(async (booking) => {
+          const passengerParams = {
+            TableName: PASSENGERS_TABLE,
+            Key: {
+              PassengerId: booking.PassengerId,
+              BookingReference: booking.BookingReference,
+            },
+          };
+
+          try {
+            const passengerResult = await docClient.send(
+              new GetCommand(passengerParams)
+            );
+            return passengerResult.Item;
+          } catch (error) {
+            console.error(
+              `Error fetching passenger ${booking.PassengerId}:`,
+              error
+            );
+            return null;
+          }
+        });
+
+        const passengers = (await Promise.all(passengerPromises)).filter(
+          (p) => p !== null
+        );
 
         // Sort by tier for prioritized handling
         const sortedPassengers = passengers.sort((a, b) => {
           const tierOrder = { senator: 3, frequent_traveler: 2, regular: 1 };
           return (
-            (tierOrder[b.frequentFlyerTier] || 0) -
-            (tierOrder[a.frequentFlyerTier] || 0)
+            (tierOrder[b.FrequentFlyerTier] || 0) -
+            (tierOrder[a.FrequentFlyerTier] || 0)
           );
         });
 
@@ -359,13 +407,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             {
               type: "text",
-              text: `Found ${
-                passengers.length
-              } passengers on flight ${flight_number}:\n\n${JSON.stringify(
-                sortedPassengers,
-                null,
-                2
-              )}`,
+              text: `Found ${passengers.length} passengers on flight ${String(
+                flight_number
+              )}:\n\n${JSON.stringify(sortedPassengers, null, 2)}`,
             },
           ],
         };
@@ -377,7 +421,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "test_connection":
       try {
-        // Test both tables exist and are accessible
+        // Test all tables exist and are accessible
         const flightsTest = await docClient.send(
           new ScanCommand({
             TableName: FLIGHTS_TABLE,
@@ -388,6 +432,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const passengersTest = await docClient.send(
           new ScanCommand({
             TableName: PASSENGERS_TABLE,
+            Limit: 1,
+          })
+        );
+
+        const bookingsTest = await docClient.send(
+          new ScanCommand({
+            TableName: BOOKINGS_TABLE,
+            Limit: 1,
+          })
+        );
+
+        const delayNotificationsTest = await docClient.send(
+          new ScanCommand({
+            TableName: DELAY_NOTIFICATIONS_TABLE,
+            Limit: 1,
+          })
+        );
+
+        const rebookingOptionsTest = await docClient.send(
+          new ScanCommand({
+            TableName: REBOOKING_OPTIONS_TABLE,
             Limit: 1,
           })
         );
@@ -408,7 +473,22 @@ Passengers table (${PASSENGERS_TABLE}):
 - Sample records: ${passengersTest.Items?.length || 0}
 - Total scanned: ${passengersTest.ScannedCount || 0}
 
-AWS Region: us-west-2
+Bookings table (${BOOKINGS_TABLE}):
+- Accessible: Yes  
+- Sample records: ${bookingsTest.Items?.length || 0}
+- Total scanned: ${bookingsTest.ScannedCount || 0}
+
+DelayNotifications table (${DELAY_NOTIFICATIONS_TABLE}):
+- Accessible: Yes  
+- Sample records: ${delayNotificationsTest.Items?.length || 0}
+- Total scanned: ${delayNotificationsTest.ScannedCount || 0}
+
+RebookingOptions table (${REBOOKING_OPTIONS_TABLE}):
+- Accessible: Yes  
+- Sample records: ${rebookingOptionsTest.Items?.length || 0}
+- Total scanned: ${rebookingOptionsTest.ScannedCount || 0}
+
+AWS Region: us-east-1
 Connection: Successful`,
             },
           ],
@@ -425,9 +505,9 @@ Error Code: ${error.name}
 
 Troubleshooting:
 1. Check AWS credentials (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
-2. Verify tables exist: ${FLIGHTS_TABLE}, ${PASSENGERS_TABLE}
+2. Verify tables exist: ${FLIGHTS_TABLE}, ${PASSENGERS_TABLE}, ${BOOKINGS_TABLE}, ${DELAY_NOTIFICATIONS_TABLE}, ${REBOOKING_OPTIONS_TABLE}
 3. Check IAM permissions for DynamoDB access
-4. Confirm region is correct (currently: us-west-2)`,
+4. Confirm region is correct (currently: us-east-1)`,
             },
           ],
         };
@@ -439,6 +519,38 @@ Troubleshooting:
       };
   }
 });
+
+function getRecommendationReason(passenger_tier) {
+  switch (passenger_tier) {
+    case "senator":
+      return "Premium service prioritized for Senator status";
+    case "frequent_traveler":
+      return "Earliest available departure for frequent traveler";
+    default:
+      return "Available alternative flight";
+  }
+}
+
+// Helper function to check flight status case-insensitively
+function isDelayedStatus(status) {
+  if (!status) return false;
+  const statusLower = status.toLowerCase();
+  return (
+    statusLower === "delayed" ||
+    statusLower === "cancelled" ||
+    statusLower === "diverted"
+  );
+}
+
+function isOnTimeStatus(status) {
+  if (!status) return false;
+  const statusLower = status.toLowerCase();
+  return (
+    statusLower === "on_time" ||
+    statusLower === "on-time" ||
+    statusLower === "scheduled"
+  );
+}
 
 async function main() {
   const transport = new StdioServerTransport();

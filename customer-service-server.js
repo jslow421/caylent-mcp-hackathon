@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  ScanCommand,
+} from "@aws-sdk/lib-dynamodb";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -9,10 +13,15 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-const client = new DynamoDBClient({ region: "us-west-2" }); // Update region as needed
+const client = new DynamoDBClient({ region: "us-east-1" }); // Updated to match schema region
 const docClient = DynamoDBDocumentClient.from(client);
 
-const PASSENGERS_TABLE = "slowik-passenger-test";
+// Updated table names to match new schemas
+const PASSENGERS_TABLE = "Passengers";
+const BOOKINGS_TABLE = "Bookings";
+const DELAY_NOTIFICATIONS_TABLE = "DelayNotifications";
+const REBOOKING_OPTIONS_TABLE = "RebookingOptions";
+const CUSTOMER_SUPPORT_SESSIONS_TABLE = "CustomerSupportSessions";
 
 const server = new Server(
   {
@@ -88,6 +97,48 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ["passenger_id", "issue_complexity"],
         },
       },
+      {
+        name: "create_delay_notification",
+        description:
+          "Create a delay notification record for tracking and follow-up",
+        inputSchema: {
+          type: "object",
+          properties: {
+            passenger_id: { type: "string" },
+            flight_number: { type: "string" },
+            delay_minutes: { type: "number" },
+            notification_type: {
+              type: "string",
+              enum: ["sms", "email", "push", "call"],
+            },
+            message_content: { type: "string" },
+          },
+          required: ["passenger_id", "flight_number", "delay_minutes"],
+        },
+      },
+      {
+        name: "start_support_session",
+        description:
+          "Start a new customer support session and track interaction",
+        inputSchema: {
+          type: "object",
+          properties: {
+            passenger_id: { type: "string" },
+            issue_type: {
+              type: "string",
+              enum: [
+                "flight_delay",
+                "rebooking",
+                "compensation",
+                "general_inquiry",
+              ],
+            },
+            initial_context: { type: "string" },
+            agent_id: { type: "string" },
+          },
+          required: ["passenger_id", "issue_type"],
+        },
+      },
     ],
   };
 });
@@ -98,12 +149,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   switch (name) {
     case "generate_proactive_message":
       try {
-        // Get passenger by ID - you'll need to know the key structure
+        // Get passenger by ID using the new schema structure
         const params = {
           TableName: PASSENGERS_TABLE,
-          FilterExpression: "id = :id",
+          FilterExpression: "PassengerId = :id",
           ExpressionAttributeValues: {
-            ":id": args.passenger_id,
+            ":id": String(args.passenger_id),
           },
         };
 
@@ -115,15 +166,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             content: [
               {
                 type: "text",
-                text: `Passenger ${args.passenger_id} not found`,
+                text: `Passenger ${String(args.passenger_id)} not found`,
               },
             ],
           };
         }
 
         const passenger = passengers[0];
-        const tone = args.message_tone || "solution_focused";
-        const tier = passenger?.frequentFlyerTier || "regular";
+        const tier = passenger?.FrequentFlyerTier || "regular";
 
         let message = "";
 
@@ -212,7 +262,9 @@ Lufthansa`;
             {
               step: 1,
               action: "Cancel original booking",
-              details: `Cancel existing reservation for passenger ${passenger_id}`,
+              details: `Cancel existing reservation for passenger ${String(
+                passenger_id
+              )}`,
             },
             {
               step: 2,
@@ -264,27 +316,31 @@ Lufthansa`;
           conversation_history = [],
         } = args;
 
+        let priority = "NORMAL";
+        if (issue_complexity === "vip_handling") {
+          priority = "HIGH";
+        } else if (issue_complexity === "compensation_required") {
+          priority = "MEDIUM";
+        }
+
+        let agentType = "Standard Agent";
+        if (issue_complexity === "vip_handling") {
+          agentType = "Senior VIP Agent";
+        } else if (issue_complexity === "complex_itinerary") {
+          agentType = "Specialist Agent";
+        }
+
         const handoff = {
           escalation_id: `ESC_${Date.now()}`,
           passenger_id,
           issue_complexity,
-          priority:
-            issue_complexity === "vip_handling"
-              ? "HIGH"
-              : issue_complexity === "compensation_required"
-              ? "MEDIUM"
-              : "NORMAL",
+          priority,
           context: {
             conversation_summary:
               conversation_history.length > 0
                 ? `Customer has had ${conversation_history.length} previous interactions`
                 : "First contact",
-            recommended_agent_type:
-              issue_complexity === "vip_handling"
-                ? "Senior VIP Agent"
-                : issue_complexity === "complex_itinerary"
-                ? "Specialist Agent"
-                : "Standard Agent",
+            recommended_agent_type: agentType,
             preparation_notes: [
               "Customer is already aware of delay",
               "Alternative options have been presented",
@@ -299,6 +355,119 @@ Lufthansa`;
             {
               type: "text",
               text: JSON.stringify(handoff, null, 2),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: `Error: ${error.message}` }],
+        };
+      }
+
+    case "create_delay_notification":
+      try {
+        const {
+          passenger_id,
+          flight_number,
+          delay_minutes,
+          notification_type = "email",
+          message_content,
+        } = args;
+
+        const notificationId = `NOTIFY_${Date.now()}`;
+        const createdAt = new Date().toISOString();
+
+        const notification = {
+          NotificationId: notificationId,
+          CreatedAt: createdAt,
+          PassengerId: passenger_id,
+          FlightNumber: flight_number,
+          DelayMinutes: delay_minutes,
+          NotificationType: notification_type,
+          MessageContent: message_content,
+          Status: "sent",
+          DeliveredAt: createdAt,
+        };
+
+        await docClient.send(
+          new PutCommand({
+            TableName: DELAY_NOTIFICATIONS_TABLE,
+            Item: notification,
+          })
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  notification_id: notificationId,
+                  status: "created",
+                  passenger_id,
+                  flight_number,
+                  notification_type,
+                  created_at: createdAt,
+                },
+                null,
+                2
+              ),
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: `Error: ${error.message}` }],
+        };
+      }
+
+    case "start_support_session":
+      try {
+        const {
+          passenger_id,
+          issue_type,
+          initial_context = "",
+          agent_id = "AI_ASSISTANT",
+        } = args;
+
+        const sessionId = `SESSION_${Date.now()}`;
+        const createdAt = new Date().toISOString();
+
+        const session = {
+          SessionId: sessionId,
+          CreatedAt: createdAt,
+          PassengerId: passenger_id,
+          AgentId: agent_id,
+          IssueType: issue_type,
+          InitialContext: initial_context,
+          Status: "active",
+          Messages: [],
+          Resolution: null,
+        };
+
+        await docClient.send(
+          new PutCommand({
+            TableName: CUSTOMER_SUPPORT_SESSIONS_TABLE,
+            Item: session,
+          })
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(
+                {
+                  session_id: sessionId,
+                  status: "started",
+                  passenger_id,
+                  issue_type,
+                  agent_id,
+                  created_at: createdAt,
+                },
+                null,
+                2
+              ),
             },
           ],
         };
